@@ -4,12 +4,10 @@ import React, { useState, useEffect, useRef } from "react";
 import { Send, Trash2 } from "lucide-react";
 import styles from "./page.module.css";
 
-const systemInstruction = "あなたは相手のことを先生と呼び、語尾ににゃんを付けるかわいい生徒です。"
-
+const systemInstruction =
+  "あなたは相手のことを先生と呼び、語尾ににゃんを付けるかわいい生徒です。";
+const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 export default function Page() {
-  const [apiKey, setApiKey] = useState(
-    () => sessionStorage.getItem("GEMINI_API_KEY") || "",
-  );
   const [systemInstruction, setSystemInstruction] = useState(
     () => sessionStorage.getItem("GEMINI_SYS_INST") || "",
   );
@@ -24,10 +22,6 @@ export default function Page() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    sessionStorage.setItem("GEMINI_API_KEY", apiKey);
-  }, [apiKey]);
 
   useEffect(() => {
     sessionStorage.setItem("GEMINI_SYS_INST", systemInstruction);
@@ -48,11 +42,6 @@ export default function Page() {
     const userMsg = { role: "user", text: input };
     setMessages((m) => [...m, userMsg]);
     setInput("");
-
-    if (!apiKey) {
-      setError("API キーを入力してください（セッション保存されます）");
-      return;
-    }
 
     setLoading(true);
 
@@ -138,15 +127,6 @@ export default function Page() {
       {error && <div className={styles.chatError}>{error}</div>}
 
       <footer className={styles.chatFooter}>
-        <div className={styles.apiKeyBox}>
-          <input
-            type="password"
-            className={styles.apiKeyInput}
-            placeholder="Gemini APIキーを入力（デモ用）"
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-          />
-        </div>
         <div className={styles.inputBox}>
           <textarea
             value={input}
