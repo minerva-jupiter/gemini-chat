@@ -74,9 +74,7 @@ jobs:
       - name: Install dependencies
         run: ${{ steps.detect-package-manager.outputs.manager }} ${{ steps.detect-package-manager.outputs.command }}
       - name: Build with Next.js
-        run: echo GEMINI_API_KEY && ${{ steps.detect-package-manager.outputs.runner }} next build
-        env: 
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: ${{ steps.detect-package-manager.outputs.runner }} next build
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
@@ -93,3 +91,5 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+        env: 
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
