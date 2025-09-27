@@ -1,188 +1,155 @@
+// page.tsx
 "use client";
-import { useState } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import React, { useState, useEffect, useRef } from "react";
+import { Send, Trash2 } from "lucide-react";
+import styles from "./page.module.css";
 
-interface Message {
-  role: "user" | "model";
-  content: string;
-}
+const systemInstruction =
+  "あなたは相手のことを先生と呼び、語尾ににゃんを付けるかわいい生徒です。";
+const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+export default function Page() {
+  const [systemInstruction, setSystemInstruction] = useState(
+    () => sessionStorage.getItem("GEMINI_SYS_INST") || "",
+  );
+  const [input, setInput] = useState("");
+  const [messages, setMessages] = useState(
+    () =>
+      JSON.parse(sessionStorage.getItem("gemini_chat_messages") || "[]") as {
+        role: string;
+        text: string;
+      }[],
+  );
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const listRef = useRef<HTMLDivElement | null>(null);
 
-export default function GeminiSample() {
-  const [messages, setMessages] = useState<Message[]>([
-    { role: "model", content: "こんにちは！お話ししましょう。" },
-  ]);
-  const [inputMessage, setInputMessage] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  useEffect(() => {
+    sessionStorage.setItem("GEMINI_SYS_INST", systemInstruction);
+  }, [systemInstruction]);
 
-  const handleSend = async () => {
-    if (!inputMessage.trim() || isLoading) return;
+  useEffect(() => {
+    sessionStorage.setItem("gemini_chat_messages", JSON.stringify(messages));
+    listRef.current?.scrollTo({
+      top: listRef.current.scrollHeight,
+      behavior: "smooth",
+    });
+  }, [messages]);
 
-    const userMessage: Message = { role: "user", content: inputMessage.trim() };
+  async function sendMessage() {
+    if (!input.trim()) return;
+    setError(null);
 
-    setMessages((prev) => [...prev, userMessage]);
-    setInputMessage("");
-    setIsLoading(true);
+    const userMsg = { role: "user", text: input };
+    setMessages((m) => [...m, userMsg]);
+    setInput("");
+
+    setLoading(true);
 
     try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const payload: any = {
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: userMsg.text }],
+          },
+        ],
+      };
+
+      if (systemInstruction.trim()) {
+        payload.systemInstruction = {
+          role: "system",
+          parts: [{ text: systemInstruction }],
+        };
+      }
+
+      const res = await fetch(
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": apiKey,
+          },
+          body: JSON.stringify(payload),
         },
-        body: JSON.stringify({ prompt: userMessage.content }),
-      });
+      );
 
       if (!res.ok) {
-        throw new Error(`APIエラー: ${res.status}`);
+        const text = await res.text();
+        throw new Error(`HTTP ${res.status} - ${text}`);
       }
 
-      const reader = res.body?.getReader();
-      if (!reader) return;
+      const data = await res.json();
+      const assistantText =
+        data?.candidates?.[0]?.content?.parts?.[0]?.text ??
+        JSON.stringify(data, null, 2);
 
-      const decoder = new TextDecoder();
-      let modelResponseContent = "";
-
-      const tempModelMessage: Message = { role: "model", content: "" };
-      setMessages((prev) => [...prev, tempModelMessage]);
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value);
-        modelResponseContent += chunk;
-
-        setMessages((prev) => {
-          const newMessages = [...prev];
-          const lastMessageIndex = newMessages.length - 1;
-          if (newMessages[lastMessageIndex].role === "model") {
-            newMessages[lastMessageIndex].content = modelResponseContent;
-          }
-          return newMessages;
-        });
-      }
-    } catch (error) {
-      console.error("チャットエラー:", error);
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "model",
-          content: "エラーが発生しました。もう一度お試しください。",
-        },
-      ]);
+      setMessages((m) => [...m, { role: "assistant", text: assistantText }]);
+    } catch (e: any) {
+      setError(`Error: ${e.message}`);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
-  };
+  }
 
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      handleSend();
-    }
-  };
+  function clearConversation() {
+    setMessages([]);
+    sessionStorage.removeItem("gemini_chat_messages");
+  }
 
   return (
-    <article
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100vh",
-        padding: "20px",
-        maxWidth: "800px",
-        margin: "0 auto",
-      }}
-    >
-      <section
-        style={{
-          flexGrow: 1,
-          overflowY: "auto",
-          marginBottom: "10px",
-          padding: "10px",
-          border: "1px solid #ccc",
-          borderRadius: "8px",
-          backgroundColor: "#f9f9f9",
-        }}
-      >
-        {messages.map((msg, index) => (
+    <div className={styles.chatContainer}>
+      <header className={styles.chatHeader}>
+        <h1 className={styles.chatTitle}>Gemini Chat</h1>
+        <button onClick={clearConversation} className={styles.chatClear}>
+          <Trash2 size={16} /> クリア
+        </button>
+      </header>
+
+      <main ref={listRef} className={styles.chatMessages}>
+        {messages.length === 0 && (
+          <div className={styles.chatEmpty}>まだ会話がありません。</div>
+        )}
+        {messages.map((m, i) => (
           <div
-            key={index}
-            style={{
-              marginBottom: "10px",
-              textAlign: msg.role === "user" ? "right" : "left",
-            }}
+            key={i}
+            className={`${styles.messageRow} ${m.role === "user" ? styles.user : styles.assistant}`}
           >
-            <span
-              style={{
-                display: "inline-block",
-                padding: "8px 12px",
-                borderRadius: "18px",
-                maxWidth: "75%",
-                backgroundColor: msg.role === "user" ? "#007bff" : "#e0e0e0",
-                color: msg.role === "user" ? "white" : "black",
-              }}
+            <div
+              className={`${styles.messageBubble} ${m.role === "user" ? styles.user : styles.assistant}`}
             >
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {msg.content}
-              </ReactMarkdown>
-            </span>
-            <div style={{ fontSize: "12px", color: "#666", marginTop: "4px" }}>
-              {msg.role === "user" ? "あなた" : "Gemini"}
+              {m.text}
             </div>
           </div>
         ))}
-        {isLoading && (
-          <div style={{ textAlign: "left", marginBottom: "10px" }}>
-            <span
-              style={{
-                display: "inline-block",
-                padding: "8px 12px",
-                borderRadius: "18px",
-                backgroundColor: "#e0e0e0",
-                color: "black",
-              }}
-            >
-              ......
-            </span>
-          </div>
-        )}
-      </section>
+      </main>
 
-      <section style={{ display: "flex" }}>
-        <input
-          type="text"
-          value={inputMessage}
-          onChange={(e) => setInputMessage(e.target.value)}
-          onKeyPress={handleKeyPress}
-          placeholder="メッセージを入力..."
-          disabled={isLoading}
-          style={{
-            flexGrow: 1,
-            padding: "10px",
-            border: "1px solid #ccc",
-            borderRadius: "4px",
-            marginRight: "10px",
-            fontSize: "16px",
-          }}
-        />
-        <button
-          onClick={handleSend}
-          disabled={!inputMessage.trim() || isLoading}
-          style={{
-            padding: "10px 20px",
-            border: "none",
-            borderRadius: "4px",
-            backgroundColor:
-              !inputMessage.trim() || isLoading ? "#b3d4ff" : "#007bff",
-            color: "white",
-            cursor:
-              !inputMessage.trim() || isLoading ? "not-allowed" : "pointer",
-            fontSize: "16px",
-          }}
-        >
-          送信
-        </button>
-      </section>
-    </article>
+      {error && <div className={styles.chatError}>{error}</div>}
+
+      <footer className={styles.chatFooter}>
+        <div className={styles.inputBox}>
+          <textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            className={styles.messageInput}
+            placeholder="メッセージを入力..."
+            rows={2}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+              }
+            }}
+          />
+          <button
+            onClick={sendMessage}
+            disabled={loading}
+            className={styles.sendButton}
+          >
+            {loading ? "..." : <Send size={18} />}
+          </button>
+        </div>
+      </footer>
+    </div>
   );
 }
