@@ -2,8 +2,7 @@ import { GoogleGenAI } from "@google/genai";
 import { NextRequest, NextResponse } from "next/server";
 
 // 環境変数からAPIキーを取得
-// const apiKey = process.env.GEMINI_API_KEY;
-const apiKey = import.meta.env.GEMINI_API_KEY;
+const apiKey = process.env.GEMINI_API_KEY;
 if (!apiKey) {
   throw new Error("GEMINI_API_KEY is not set");
 }
