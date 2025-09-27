@@ -6,7 +6,7 @@ const apiKey = process.env.GEMINI_API_KEY;
 if (!apiKey) {
   throw new Error("GEMINI_API_KEY is not set");
 }
-const ai = new GoogleGenAI(apiKey);
+const ai = new GoogleGenAI({ apiKey: apiKey });
 
 // システムプロンプトを定義
 const SYSTEM_INSTRUCTION =
