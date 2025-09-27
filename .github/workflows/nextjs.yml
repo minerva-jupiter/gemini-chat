@@ -84,6 +84,8 @@ jobs:
 
   # Deployment job
   deploy:
+    env: 
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -93,5 +95,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-        env: 
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
