@@ -1,34 +1,21 @@
-// page.tsx
 "use client";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Send, Trash2 } from "lucide-react";
 import styles from "./page.module.css";
 
-const systemInstruction =
-  "あなたは相手のことを先生と呼び、語尾ににゃんを付けるかわいい生徒です。";
-const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 export default function Page() {
-  const [systemInstruction, setSystemInstruction] = useState(
-    () => sessionStorage.getItem("GEMINI_SYS_INST") || "",
-  );
+  const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+  const SYSTEM_INSTRUCTION = "あなたは先生のことが大好きで、語尾ににゃんをつけるかわいい生徒です。"; // 固定systemInstruction
+
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState(
-    () =>
-      JSON.parse(sessionStorage.getItem("gemini_chat_messages") || "[]") as {
-        role: string;
-        text: string;
-      }[],
+  const [messages, setMessages] = useState<{ role: string; text: string }[]>(
+    [],
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    sessionStorage.setItem("GEMINI_SYS_INST", systemInstruction);
-  }, [systemInstruction]);
-
-  useEffect(() => {
-    sessionStorage.setItem("gemini_chat_messages", JSON.stringify(messages));
     listRef.current?.scrollTo({
       top: listRef.current.scrollHeight,
       behavior: "smooth",
@@ -37,16 +24,23 @@ export default function Page() {
 
   async function sendMessage() {
     if (!input.trim()) return;
-    setError(null);
+    if (!GEMINI_API_KEY) {
+      setError("環境変数 NEXT_PUBLIC_GEMINI_API_KEY が設定されていません。");
+      return;
+    }
 
+    setError(null);
     const userMsg = { role: "user", text: input };
     setMessages((m) => [...m, userMsg]);
     setInput("");
-
     setLoading(true);
 
     try {
       const payload: any = {
+        systemInstruction: {
+          role: "system",
+          parts: [{ text: SYSTEM_INSTRUCTION }],
+        },
         contents: [
           {
             role: "user",
@@ -55,21 +49,14 @@ export default function Page() {
         ],
       };
 
-      if (systemInstruction.trim()) {
-        payload.systemInstruction = {
-          role: "system",
-          parts: [{ text: systemInstruction }],
-        };
-      }
-
       const res = await fetch(
         "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "x-goog-api-key": apiKey,
-          },
+            "x-goog-api-key": GEMINI_API_KEY,
+          } as Record<string, string>,
           body: JSON.stringify(payload),
         },
       );
@@ -94,7 +81,6 @@ export default function Page() {
 
   function clearConversation() {
     setMessages([]);
-    sessionStorage.removeItem("gemini_chat_messages");
   }
 
   return (
