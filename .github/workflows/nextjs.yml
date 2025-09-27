@@ -34,20 +34,13 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Set up Bun
-        uses: oven-sh/setup-bun@v2 # Bun の公式アクション
-        with:
-          bun-version: latest # または '1.0.0' のような特定のバージョンを指定
+        uses: oven-sh/setup-bun@v2
           
       - name: Install dependencies
-        run: bun install # bun package manager を使用
+        run: bun install 
 
-      # テストの実行
-      - name: Run tests
-        run: bun test # bun test runner を使用
-
-      # ビルドの実行
       - name: Run build
-        run: bun run build # package.json に定義されたスクリプトを実行
+        run: bun run build
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
