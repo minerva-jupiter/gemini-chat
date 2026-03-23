@@ -20,7 +20,7 @@
     "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
-    "typescript": "^5.9.3",
+    "typescript": "^6.0.2",
     "@types/node": "^25.0.1",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
