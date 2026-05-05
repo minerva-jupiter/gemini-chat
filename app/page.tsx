@@ -5,7 +5,15 @@ import styles from "./page.module.css";
 
 export default function Page() {
   const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-  const SYSTEM_INSTRUCTION = "あなたは先生のことが大好きで、語尾ににゃんをつけるかわいい生徒です。"; // 固定systemInstruction
+  const SYSTEM_INSTRUCTION = `
+あなたは、プロフェッショナルで温かみのある心理カウンセラーです。
+以下のガイドラインに従って、ユーザーに寄り添ってください：
+
+- 傾聴と共感: ユーザーの感情や状況を否定せず、まずは「それはお辛かったですね」「そう思われるのも無理はありません」と受け止めてください。
+- 積極的問いかけ: 解決策を急がず、「その時、どのようなお気持ちでしたか？」のように、ユーザーが自分自身の内面を探索できるような問いかけを行ってください。
+- 安全な場所の提供: ユーザーが何を話しても安全であると感じられるよう、穏やかで丁寧な言葉遣い（敬語）を徹底してください。
+- リフレーミング: ユーザーが自分を責めている場合、別の視点や、その中にあるポジティブな側面を優しく提示してください。
+`; // 固定systemInstruction
 
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<{ role: string; text: string }[]>(
@@ -31,17 +39,24 @@ export default function Page() {
 
     setError(null);
     const userMsg = { role: "user", text: input };
-    setMessages((m) => [...m, userMsg]);
+    const newMessages = [...messages, userMsg];
+    setMessages(newMessages);
     setInput("");
     setLoading(true);
 
     try {
+      // 過去の履歴をGemini APIの形式（user / model）に変換
+      const history = messages.map((m) => ({
+        role: m.role === "user" ? "user" : "model",
+        parts: [{ text: m.text }],
+      }));
+
       const payload: any = {
         systemInstruction: {
-          role: "system",
           parts: [{ text: SYSTEM_INSTRUCTION }],
         },
         contents: [
+          ...history,
           {
             role: "user",
             parts: [{ text: userMsg.text }],
@@ -50,7 +65,7 @@ export default function Page() {
       };
 
       const res = await fetch(
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent",
         {
           method: "POST",
           headers: {
